@@ -61,6 +61,10 @@ CHROME_PACKAGE_NAMES = {
   'android-jb-system-chrome':
       ['com.android.chrome',
        android_browser_backend_settings.ChromeBackendSettings,
+       None],
+  'three':
+      ['org.example.three',
+       android_browser_backend_settings.ChromeBackendSettings,
        None]
 }
 

@@ -262,6 +262,14 @@ void DirectRenderer::DrawFrame(RenderPassList* render_passes_in_draw_order,
       }
     }
   }
+  //Guangzhen
+  if (false) {
+      //BindFramebufferToOutputSurface(&frame);
+    FinishDrawingFrame(&frame);
+    render_passes_in_draw_order->clear();
+    return;
+  }
+	//Guangzhen End
 
   for (size_t i = 0; i < render_passes_in_draw_order->size(); ++i) {
     RenderPass* pass = render_passes_in_draw_order->at(i);

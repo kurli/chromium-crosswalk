@@ -125,6 +125,12 @@ PACKAGE_INFO = {
         None,
         None,
         None),
+    'three': PackageInfo(
+        'com.example.three',
+        'com.example.three.ThreeActivity',
+        '/data/local/tmp/xwview-shell-command-line',
+        None,
+        None),
 }
 
 

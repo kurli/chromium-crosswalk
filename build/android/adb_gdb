@@ -904,9 +904,9 @@ if [ "$PULL_LIBS" -a -z "$NO_PULL_LIBS" ]; then
   if [ $? != 0 ]; then
     echo "ERROR: Could not list process's memory mappings."
     if [ "$SU_PREFIX" ]; then
-      panic "Are you sure your --su-prefix is correct?"
+      print "Are you sure your --su-prefix is correct?"
     else
-      panic "Use --su-prefix if the application is not debuggable."
+      print "Use --su-prefix if the application is not debuggable."
     fi
   fi
   # Remove the fingerprint file in case pulling one of the libs fails.
