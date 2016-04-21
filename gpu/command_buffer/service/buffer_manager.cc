@@ -143,16 +143,26 @@ void Buffer::SetInfo(
     shadowed_ = shadow;
     size_ = size;
     if (shadowed_) {
-      shadow_.reset(new int8[size]);
+	//shadow_.reset(new int8[size]);
+      if (data) {
+        shadow_.reset((int8*)data);
+      } else {
+        shadow_.reset(new int8[size]);
+      }
+
     } else {
       shadow_.reset();
     }
   }
   if (shadowed_) {
     if (data) {
-      memcpy(shadow_.get(), data, size);
+	//memcpy(shadow_.get(), data, size);
     } else {
       memset(shadow_.get(), 0, size);
+    }
+  } else {
+    if (data) {
+      free((void*)data);
     }
   }
   mapped_range_.reset(nullptr);
@@ -347,11 +357,13 @@ void BufferManager::DoBufferData(
     GLenum usage,
     const GLvoid* data) {
   // Clear the buffer to 0 if no initial data was passed in.
-  scoped_ptr<int8[]> zero;
+  //scoped_ptr<int8[]> zero;
   if (!data) {
-    zero.reset(new int8[size]);
-    memset(zero.get(), 0, size);
-    data = zero.get();
+      //zero.reset(new int8[size]);
+      //memset(zero.get(), 0, size);
+      //data = zero.get();
+    data = malloc(size);
+    memset((void*)data, 0, size);
   }
 
   ERRORSTATE_COPY_REAL_GL_ERRORS_TO_WRAPPER(error_state, "glBufferData");

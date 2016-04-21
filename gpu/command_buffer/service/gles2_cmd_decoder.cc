@@ -9770,20 +9770,32 @@ error::Error GLES2DecoderImpl::HandleBufferData(uint32 immediate_data_size,
   GLenum usage = static_cast<GLenum>(c.usage);
   const void* data = NULL;
   if (data_shm_id != 0 || data_shm_offset != 0) {
-    data = GetSharedMemoryAs<const void*>(data_shm_id, data_shm_offset, size);
+      //data = GetSharedMemoryAs<const void*>(data_shm_id, data_shm_offset, size);
+    data = GetSharedMemoryAs<const void*>(data_shm_id, data_shm_offset, sizeof(void*)*2);
     if (!data) {
       return error::kOutOfBounds;
     }
   }
-  buffer_manager()->ValidateAndDoBufferData(&state_, target, size, data, usage);
+  const void* data2 = NULL;
+  if (data) {
+      data2 = (const void*)(*(const int*)data);
+  }
+  buffer_manager()->ValidateAndDoBufferData(&state_, target, size, data2, usage);
   return error::kNoError;
 }
 
 void GLES2DecoderImpl::DoBufferSubData(
   GLenum target, GLintptr offset, GLsizeiptr size, const GLvoid * data) {
   // Just delegate it. Some validation is actually done before this.
+  //void* data2 = NULL;
+  //if (data) {
+  //  data2 = (void*)(*(const int*)data);
+  //}
   buffer_manager()->ValidateAndDoBufferSubData(
       &state_, target, offset, size, data);
+  //if (data2) {
+  //  free(data2);
+  //}
 }
 
 bool GLES2DecoderImpl::ClearLevel(Texture* texture,

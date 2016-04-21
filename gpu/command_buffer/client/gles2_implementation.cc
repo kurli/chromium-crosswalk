@@ -1862,13 +1862,19 @@ void GLES2Implementation::BufferDataHelper(
   }
 
   // See if we can send all at once.
-  ScopedTransferBufferPtr buffer(size, helper_, transfer_buffer_);
+  //ScopedTransferBufferPtr buffer(size, helper_, transfer_buffer_);
+  ScopedTransferBufferPtr buffer(sizeof(void*), helper_, transfer_buffer_);
+
   if (!buffer.valid()) {
     return;
   }
 
-  if (buffer.size() >= static_cast<unsigned int>(size)) {
-    memcpy(buffer.address(), data, size);
+  //if (buffer.size() >= static_cast<unsigned int>(size)) {
+  if (buffer.size() >= static_cast<unsigned int>(sizeof(void*))) {
+    void* buffer2 = malloc(size);
+    memcpy(buffer2, data, size);
+    memcpy(buffer.address(), &buffer2, sizeof(void*));
+//memcpy(buffer.address(), data, size);
     helper_->BufferData(
         target,
         size,
@@ -1930,7 +1936,8 @@ void GLES2Implementation::BufferSubDataHelper(
     return;
   }
 
-  ScopedTransferBufferPtr buffer(size, helper_, transfer_buffer_);
+  //ScopedTransferBufferPtr buffer(size, helper_, transfer_buffer_);
+  ScopedTransferBufferPtr buffer(sizeof(void*), helper_, transfer_buffer_);
   BufferSubDataHelperImpl(target, offset, size, data, &buffer);
 }
 
@@ -1943,17 +1950,27 @@ void GLES2Implementation::BufferSubDataHelperImpl(
   const int8* source = static_cast<const int8*>(data);
   while (size) {
     if (!buffer->valid() || buffer->size() == 0) {
-      buffer->Reset(size);
+	//buffer->Reset(size);
+	buffer->Reset(sizeof(void*));
       if (!buffer->valid()) {
         return;
       }
     }
-    memcpy(buffer->address(), source, buffer->size());
+    void* buffer2 = malloc(size);
+    memcpy(buffer2, source, size);
+    memcpy(buffer->address(), &buffer2, sizeof(void*));
+
+    //memcpy(buffer->address(), source, buffer->size());
+    //helper_->BufferSubData(
+    //    target, offset, buffer->size(), buffer->shm_id(), buffer->offset());
     helper_->BufferSubData(
-        target, offset, buffer->size(), buffer->shm_id(), buffer->offset());
-    offset += buffer->size();
-    source += buffer->size();
-    size -= buffer->size();
+        target, offset, size, buffer->shm_id(), buffer->offset());
+    //offset += buffer->size();
+    offset += size;
+    //source += buffer->size();
+    source += size;
+    //size -= buffer->size();
+    size -= size;
     buffer->Release();
   }
 }
@@ -4416,6 +4433,10 @@ void GLES2Implementation::UnmapBufferSubDataCHROMIUM(const void* mem) {
     return;
   }
   const MappedBuffer& mb = it->second;
+  //
+  void* buffer2 = malloc(mb.size);
+  memcpy(buffer2, (void*)mem, mb.size);
+  memcpy((void*)mem, &buffer2, sizeof(void*));
   helper_->BufferSubData(
       mb.target, mb.offset, mb.size, mb.shm_id, mb.shm_offset);
   mapped_memory_->FreePendingToken(mb.shm_memory, helper_->InsertToken());
