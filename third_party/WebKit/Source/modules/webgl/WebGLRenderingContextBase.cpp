@@ -994,7 +994,7 @@ PassRefPtr<DrawingBuffer> WebGLRenderingContextBase::createDrawingBuffer(PassOwn
     attrs.antialias = m_requestedAttributes.antialias();
     attrs.premultipliedAlpha = m_requestedAttributes.premultipliedAlpha();
     DrawingBuffer::PreserveDrawingBuffer preserve = m_requestedAttributes.preserveDrawingBuffer() ? DrawingBuffer::Preserve : DrawingBuffer::Discard;
-    return DrawingBuffer::create(context, clampedCanvasSize(), preserve, attrs);
+    return DrawingBuffer::create(context, clampedCanvasSize(), preserve, attrs, this);
 }
 
 void WebGLRenderingContextBase::initializeNewContext()
@@ -1003,6 +1003,7 @@ void WebGLRenderingContextBase::initializeNewContext()
     ASSERT(drawingBuffer());
 
     m_markedCanvasDirty = false;
+    m_isLowFPS = false;
     m_activeTextureUnit = 0;
     m_packAlignment = 4;
     m_unpackAlignment = 4;
@@ -2382,6 +2383,24 @@ void WebGLRenderingContextBase::flush()
         return;
     webContext()->flush();
 }
+
+bool WebGLRenderingContextBase::reshapeForBetterPerf(bool smaller) {
+    if (smaller == true && m_isLowFPS == false) {
+	m_isLowFPS = true;
+	reshape(canvas()->width()/2, canvas()->height()/2);
+	viewport(0, 0, canvas()->width(), canvas()->height());
+	scissor(0, 0, canvas()->width(), canvas()->height());
+        return true;
+    } else if (smaller == false && m_isLowFPS == true) {
+	m_isLowFPS = false;
+	reshape(canvas()->width(), canvas()->height());
+	viewport(0, 0, canvas()->width(), canvas()->height());
+	scissor(0, 0, canvas()->width(), canvas()->height());
+        return true; 
+    }
+    return false;
+}
+
 
 void WebGLRenderingContextBase::framebufferRenderbuffer(ScriptState* scriptState, GLenum target, GLenum attachment, GLenum renderbuffertarget, WebGLRenderbuffer* buffer)
 {
@@ -3971,6 +3990,10 @@ void WebGLRenderingContextBase::scissor(GLint x, GLint y, GLsizei width, GLsizei
         return;
     if (!validateSize("scissor", width, height))
         return;
+    if (m_isLowFPS == true && m_framebufferBinding == nullptr) {
+        width /= 2;
+        height /= 2;
+    }
     webContext()->scissor(x, y, width, height);
 }
 
@@ -5148,6 +5171,10 @@ void WebGLRenderingContextBase::viewport(GLint x, GLint y, GLsizei width, GLsize
         return;
     if (!validateSize("viewport", width, height))
         return;
+    if (m_isLowFPS == true && m_framebufferBinding == nullptr) {
+        width /= 2;
+        height /= 2;
+    }
     webContext()->viewport(x, y, width, height);
 }
 

@@ -391,6 +391,7 @@ public:
     Extensions3DUtil* extensionsUtil();
 
     void reshape(int width, int height) override;
+    bool reshapeForBetterPerf(bool smaller);
 
     void markLayerComposited() override;
     ImageData* paintRenderingResultsToImageData(SourceDrawingBuffer) override;
@@ -512,6 +513,7 @@ protected:
     Timer<WebGLRenderingContextBase> m_restoreTimer;
 
     bool m_markedCanvasDirty;
+    bool m_isLowFPS;
 #if ENABLE(OILPAN)
     HeapHashSet<WeakMember<WebGLContextObject>> m_contextObjects;
 #else

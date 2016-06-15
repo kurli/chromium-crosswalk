@@ -45,12 +45,18 @@
 #include "wtf/Noncopyable.h"
 #include "wtf/OwnPtr.h"
 #include "wtf/PassOwnPtr.h"
+#include "base/memory/scoped_ptr.h"
+#include "base/time/time.h"
 
 namespace WTF {
 
 class ArrayBufferContents;
 
 } // namespace WTF
+
+namespace cc {
+class FrameRateCounter;
+}
 
 namespace blink {
 
@@ -60,6 +66,7 @@ class WebExternalBitmap;
 class WebExternalTextureLayer;
 class WebGraphicsContext3D;
 class WebLayer;
+class WebGLRenderingContextBase;
 
 // Manages a rendering target (framebuffer + attachment) for a canvas.  Can publish its rendering
 // results to a WebLayer for compositing.
@@ -92,7 +99,7 @@ public:
         Discard
     };
 
-    static PassRefPtr<DrawingBuffer> create(PassOwnPtr<WebGraphicsContext3D>, const IntSize&, PreserveDrawingBuffer, WebGraphicsContext3D::Attributes requestedAttributes);
+    static PassRefPtr<DrawingBuffer> create(PassOwnPtr<WebGraphicsContext3D>, const IntSize&, PreserveDrawingBuffer, WebGraphicsContext3D::Attributes requestedAttributes, WebGLRenderingContextBase* wrcb);
     static void forceNextDrawingBufferCreationToFail();
 
     ~DrawingBuffer() override;
@@ -193,7 +200,8 @@ protected: // For unittests
         bool packedDepthStencilExtensionSupported,
         bool discardFramebufferSupported,
         PreserveDrawingBuffer,
-        WebGraphicsContext3D::Attributes requestedAttributes);
+        WebGraphicsContext3D::Attributes requestedAttributes,
+        WebGLRenderingContextBase* parent);
 
     bool initialize(const IntSize&);
 
@@ -314,6 +322,10 @@ private:
 
     // Used to flip a bitmap vertically.
     Vector<uint8_t> m_scanline;
+    scoped_ptr<cc::FrameRateCounter> fps_counter_;
+    WebGLRenderingContextBase* parent_;
+    base::TimeTicks last_fps_measure_time_;
+    base::TimeTicks last_reshape_time_;
 };
 
 } // namespace blink

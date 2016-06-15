@@ -47,6 +47,11 @@
 #ifndef NDEBUG
 #include "wtf/RefCountedLeakCounter.h"
 #endif
+#include "cc/debug/frame_rate_counter.h"
+#include "modules/webgl/WebGLRenderingContextBase.h"
+
+#include <android/log.h>
+
 
 namespace blink {
 
@@ -87,7 +92,7 @@ static bool shouldFailDrawingBufferCreationForTesting = false;
 
 } // namespace
 
-PassRefPtr<DrawingBuffer> DrawingBuffer::create(PassOwnPtr<WebGraphicsContext3D> context, const IntSize& size, PreserveDrawingBuffer preserve, WebGraphicsContext3D::Attributes requestedAttributes)
+PassRefPtr<DrawingBuffer> DrawingBuffer::create(PassOwnPtr<WebGraphicsContext3D> context, const IntSize& size, PreserveDrawingBuffer preserve, WebGraphicsContext3D::Attributes requestedAttributes, WebGLRenderingContextBase* parent)
 {
     ASSERT(context);
 
@@ -118,7 +123,7 @@ PassRefPtr<DrawingBuffer> DrawingBuffer::create(PassOwnPtr<WebGraphicsContext3D>
     if (discardFramebufferSupported)
         extensionsUtil->ensureExtensionEnabled("GL_EXT_discard_framebuffer");
 
-    RefPtr<DrawingBuffer> drawingBuffer = adoptRef(new DrawingBuffer(context, extensionsUtil.release(), multisampleSupported, packedDepthStencilSupported, discardFramebufferSupported, preserve, requestedAttributes));
+    RefPtr<DrawingBuffer> drawingBuffer = adoptRef(new DrawingBuffer(context, extensionsUtil.release(), multisampleSupported, packedDepthStencilSupported, discardFramebufferSupported, preserve, requestedAttributes, parent));
     if (!drawingBuffer->initialize(size)) {
         drawingBuffer->beginDestruction();
         return PassRefPtr<DrawingBuffer>();
@@ -137,7 +142,8 @@ DrawingBuffer::DrawingBuffer(PassOwnPtr<WebGraphicsContext3D> context,
     bool packedDepthStencilExtensionSupported,
     bool discardFramebufferSupported,
     PreserveDrawingBuffer preserve,
-    WebGraphicsContext3D::Attributes requestedAttributes)
+    WebGraphicsContext3D::Attributes requestedAttributes,
+    WebGLRenderingContextBase* parent)
     : m_preserveDrawingBuffer(preserve)
     , m_scissorEnabled(false)
     , m_texture2DBinding(0)
@@ -170,12 +176,14 @@ DrawingBuffer::DrawingBuffer(PassOwnPtr<WebGraphicsContext3D> context,
     , m_destructionInProgress(false)
     , m_isHidden(false)
     , m_filterQuality(kLow_SkFilterQuality)
+    ,fps_counter_(cc::FrameRateCounter::Create(true))
 {
     // Used by browser tests to detect the use of a DrawingBuffer.
     TRACE_EVENT_INSTANT0("test_gpu", "DrawingBufferCreation", TRACE_EVENT_SCOPE_GLOBAL);
 #ifndef NDEBUG
     drawingBufferCounter().increment();
 #endif
+    parent_ = parent;
 }
 
 DrawingBuffer::~DrawingBuffer()
@@ -242,6 +250,8 @@ void DrawingBuffer::freeRecycledMailboxes()
 
 bool DrawingBuffer::prepareMailbox(WebExternalTextureMailbox* outMailbox, WebExternalBitmap* bitmap)
 {
+    base::TimeTicks timeNow = base::TimeTicks::Now();
+
     if (m_destructionInProgress) {
         // It can be hit in the following sequence.
         // 1. WebGL draws something.
@@ -253,6 +263,30 @@ bool DrawingBuffer::prepareMailbox(WebExternalTextureMailbox* outMailbox, WebExt
     ASSERT(!m_isHidden);
     if (!m_contentsChanged)
         return false;
+
+    ////////
+    fps_counter_->SaveTimeStamp(timeNow, false);
+    
+    double delta = (timeNow - last_fps_measure_time_).InSecondsF();
+    if (delta > 5) {
+        last_fps_measure_time_ = timeNow;
+        double fps = fps_counter_->GetAverageFPS();
+        delta = (timeNow - last_reshape_time_).InSecondsF();
+	if (delta > 15 && fps < 25 && fps > 0 && parent_ != nullptr) {
+            bool succeed = parent_->reshapeForBetterPerf(true);
+            if (succeed == true) {
+                __android_log_print(ANDROID_LOG_VERBOSE, "Crosswalk", "FPS: reshape");
+                last_reshape_time_ = timeNow;
+            }
+        } else if (delta > 15 && fps > 58 && parent_ != nullptr) {
+            bool succeed = parent_->reshapeForBetterPerf(false);
+            if (succeed == true) {
+                __android_log_print(ANDROID_LOG_VERBOSE, "Crosswalk", "FPS: restore");
+                last_reshape_time_ = timeNow;
+            }
+        }
+    }
+    ////////
 
     // Resolve the multisampled buffer into m_colorBuffer texture.
     if (m_antiAliasingMode != None)

@@ -44,7 +44,7 @@ base::TimeDelta FrameRateCounter::RecentFrameInterval(size_t n) const {
 FrameRateCounter::FrameRateCounter(bool has_impl_thread)
     : has_impl_thread_(has_impl_thread), dropped_frame_count_(0) {}
 
-void FrameRateCounter::SaveTimeStamp(base::TimeTicks timestamp, bool software) {
+    void FrameRateCounter::SaveTimeStamp(base::TimeTicks timestamp, bool software, bool trace) {
   ring_buffer_.SaveToBuffer(timestamp);
 
   // Check if frame interval can be computed.
@@ -54,6 +54,7 @@ void FrameRateCounter::SaveTimeStamp(base::TimeTicks timestamp, bool software) {
   base::TimeDelta frame_interval_seconds =
       RecentFrameInterval(ring_buffer_.BufferSize() - 1);
 
+  if (trace) {
   if (has_impl_thread_ && ring_buffer_.CurrentIndex() > 0) {
     if (software) {
       UMA_HISTOGRAM_CUSTOM_COUNTS(
@@ -69,7 +70,7 @@ void FrameRateCounter::SaveTimeStamp(base::TimeTicks timestamp, bool software) {
                                   120,
                                   60);
     }
-  }
+  }}
 
   if (!IsBadFrameInterval(frame_interval_seconds) &&
       frame_interval_seconds.InSecondsF() > kDroppedFrameTime)
